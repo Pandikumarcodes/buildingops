@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from app.ai.api import router as ai_router
 from app.api.alerts import router as alerts_router
 from app.api.buildings import router as buildings_router
+from app.api.devices import router as devices_router
 from app.api.health import router as health_router
 from app.api.telemetry import router as telemetry_router
 from app.api.websocket import router as websocket_router
@@ -47,5 +48,6 @@ app.include_router(ai_router)
 app.include_router(alerts_router)
 app.include_router(buildings_router)
 app.include_router(zones_router)
+app.include_router(devices_router)
 app.include_router(telemetry_router)
 app.include_router(websocket_router)

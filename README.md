@@ -282,6 +282,14 @@ The script uses bounded in-memory synthetic fixtures and never prints the API ke
 
 To scale beyond one demo building, future work could introduce tenant-aware authorization, broker authentication, durable event identity/buffering, telemetry retention/partitioning, distributed realtime fan-out, and independently scalable ingest workers. Those are design directions, not implemented claims.
 
+## V2 implementation status
+
+V1 M0–M13 remains complete with its recorded verification limitations. **M14 — Buildings Experience Foundation** is implemented. The delivered extension is a read-only Buildings page using existing APIs, static illustrative imagery, and explicit UUID navigation; Dashboard and V1 operational views remain supported. Full scope, acceptance criteria, and tests are in [PLAN.md](PLAN.md); product boundaries are in [PRD.md](PRD.md).
+
+[ARCHITECTURE.md](ARCHITECTURE.md) records the three pre-M14 decisions: authoritative M14 scope, canonical multi-building identity, and history retention. UUIDs identify REST/database resources; the future MQTT topic is `buildingops/v2/telemetry/{building_code}/{floor_number}/{zone_code}` because zone codes are unique only within a floor. Current V1 topics, simulator, APIs, and WebSocket behavior remain unchanged until a separately planned telemetry migration implements temporary dual-version backend support. M14 adds no telemetry routing or schema changes.
+
+Building navigation must validate an explicit route UUID rather than select by demo name or first list item. No hierarchy Delete actions are permitted in M14. Future management normally archives entities with operational history; the first hierarchy-management milestone must migrate and test retention safeguards before exposing mutations. Existing database/ORM cascades are not permission to delete history through UI management.
+
 ## Recommended 5-minute demo
 
 1. Explain the simulator → MQTT → FastAPI → PostgreSQL/WebSocket → React architecture.
@@ -302,3 +310,39 @@ To scale beyond one demo building, future work could introduce tenant-aware auth
 - MQTT and WebSocket solve different problems: broker-facing device ingest versus browser-facing application events.
 - HTTP/database reads are authoritative because WebSocket delivery is ephemeral.
 - The architecture is deliberately a modular monolith: it demonstrates boundaries without introducing unnecessary distributed-system operations.
+
+## Buildings experience (M14)
+
+Open **Buildings** or visit `/buildings`. Cards load the existing list and two cached hierarchy queries per building (floors/zones); no device or telemetry fan-out. Total Buildings is the only portfolio total. Unavailable hierarchy counts are labeled and can be retried; operational status remains unavailable rather than inferring health from legacy telemetry. Local illustrative photos use deterministic code mapping and a generic photo for unknown codes, with SVG and text error fallbacks.
+
+View Building opens `/buildings/{UUID}`. M15 now provides the building header, shared imagery, hierarchy counts, and nested floors, zones, and device lists. The destination validates UUID syntax and parent relationships, handles 404/errors without selecting another building, and supports return navigation. Browser reloads receive the Vite HTML shell while API requests remain proxied. Production hosts must likewise route HTML navigation to the SPA and API requests to FastAPI.
+
+V1 views stay in the unique `DEMO-BLDG-01` context; missing or ambiguous demo codes yield the existing empty state. No name or list position selects the demo. The V1 Dashboard layout, legacy telemetry aggregation, alerts, and AI context remain unchanged; portfolio telemetry attribution awaits the future V2 transport migration. See [M14 verification](docs/M14_VERIFICATION.md).
+
+## Building Details (M15)
+
+`npm run test` runs the complete frontend suite with at most two workers to avoid resource contention and async UI timeouts on local Windows machines. No tests or assertions are disabled.
+
+Building Details reuses `getBuilding`, `listFloors`, `listZones`, and `listDevices`. TanStack Query caches floors/zones per building UUID and devices per zone UUID; device lists are fetched once per zone and supply both the nested list and total. Invalid parent responses stay unavailable. Each floor groups its zones; each zone lists device identifiers, names, and types. No telemetry attribution or operational health is inferred.
+
+Floor links use `/buildings/:buildingId/floors/:floorId`; zone links use the single canonical `/zones/:zoneId` route. M15 originally provided destination shells; M16 now provides the operational detail pages below. Vite supports HTML reloads under both `/buildings` and `/zones`. See [M15 verification](docs/M15_VERIFICATION.md).
+
+## Floor & Zone Details (M16)
+
+Floor Details validates building/floor UUIDs and membership, shows only the selected floor's zones and devices, and presents current conditions plus scoped read-only active alerts. Zone Details uses the existing `GET /zones/{zone_id}` endpoint, validates its UUID, and independently resolves its parent floor/building from cached building/floor reads. No route history or display name selects context. This parent discovery requires the building list and one cached floor list per building because the zone response contains only `floor_id`; no aggregation endpoint was introduced.
+
+The existing TelemetryProvider supplies initial REST readings, snapshots, and subsequent WebSocket updates. M16 creates no separate latest-state store or socket. Legacy code-keyed readings are shown only for the unique `DEMO-BLDG-01` context and a unique matching zone code in its complete hierarchy; additional-building readings remain unavailable pending the future V2 migration. Status priority is Alert, Live, Stale, then No telemetry. Live means a valid source timestamp no older than 30 seconds, reevaluated every five seconds; it does not claim individual device connectivity. No existing freshness threshold was present. Missing sensor values display dashes and timestamps come from the reading.
+
+Current Conditions, HVAC, configured devices, and active alerts have independent loading/error/retry/empty states. Alerts reuse the existing seven-second polling query and latest-100 bound; saturated responses are labeled potentially incomplete and do not prove absence. Device links use `/devices/:deviceId`, where `deviceId` is the database UUID, not the human-readable `device_id`. M16 provided the navigation foundation; M17 now provides Device Details below. See [M16 verification](docs/M16_VERIFICATION.md).
+
+## Device Details (M17)
+
+Direct `/devices/:deviceId` navigation validates a database UUID and loads `GET /devices/{device_id}`. This new read-only endpoint returns the existing DeviceResponse: `id`, `zone_id`, `name`, `device_id`, `device_type`, and `created_at`. It returns 404 for an unknown UUID and FastAPI's 422 for a malformed identifier. There are no device write endpoints or new schema fields.
+
+The page independently resolves Device → Zone → Floor → Building using UUID relationships and M16's cached hierarchy queries. Breadcrumbs and back links use the canonical building/floor/zone routes. Device Information contains actual identifiers, type, and parent context; no manufacturer, firmware, installation date, heartbeat, or online status is inferred.
+
+**Current telemetry shown on Device Details is zone-level operational context, not guaranteed device-sourced telemetry.** Current Zone Conditions, Recent Zone Telemetry, and Zone Alerts explicitly retain that ownership. Type-aware emphasis highlights environmental, occupancy, energy, or HVAC values without assigning sensor ownership. Status is Configured plus Zone Live/Zone Stale/No Zone Telemetry/Zone Alert, using M16's freshness/identity safeguards and the existing TelemetryProvider. No second WebSocket or latest-state store is added.
+
+Recent Zone Telemetry requests `GET /zones/{zone_id}/telemetry?limit=10`, validates zone UUIDs and source timestamps, and displays at most ten newest-first persisted readings in a compact labeled table. Persisted history is safe by zone UUID even when legacy realtime attribution is unavailable. History/alerts/parent/current-telemetry errors remain localized with retry; absent values use dashes and empty sections are explicit. The table scrolls within its panel on narrow screens and can be focused for keyboard scrolling. Vite proxies JSON reads under `/devices` and serves HTML route reloads through the SPA; production hosts need the same HTML/API distinction.
+
+Per-device telemetry ownership, connectivity/heartbeat, Device CRUD, firmware/configuration/calibration, maintenance, floor plans, MQTT V2, and AI additions remain deferred to M18+. See [M17 verification](docs/M17_VERIFICATION.md).

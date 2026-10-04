@@ -85,6 +85,28 @@ def test_list_zone_devices(client: TestClient, hierarchy: dict[str, uuid.UUID]) 
     assert response.json()[0]["device_type"] == "ENVIRONMENT_SENSOR"
 
 
+def test_get_device_by_uuid(client: TestClient, hierarchy: dict[str, uuid.UUID]) -> None:
+    response = client.get(f"/devices/{hierarchy['device']}")
+    assert response.status_code == 200
+    result = response.json()
+    assert result["id"] == str(hierarchy["device"])
+    assert result["zone_id"] == str(hierarchy["zone"])
+    assert result["device_id"] == "test-lobby-sensor"
+    assert result["device_type"] == "ENVIRONMENT_SENSOR"
+    assert set(result) == {"id", "zone_id", "name", "device_id", "device_type", "created_at"}
+
+
+def test_unknown_device_returns_404(client: TestClient) -> None:
+    response = client.get(f"/devices/{uuid.UUID(int=999)}")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Device not found"}
+
+
+@pytest.mark.parametrize("identifier", ["bad-uuid", "test-lobby-sensor"])
+def test_device_route_requires_uuid(client: TestClient, identifier: str) -> None:
+    assert client.get(f"/devices/{identifier}").status_code == 422
+
+
 @pytest.mark.parametrize(
     ("path", "resource_id"),
     [

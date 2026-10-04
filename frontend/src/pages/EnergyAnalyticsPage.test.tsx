@@ -22,7 +22,7 @@ class MockWebSocket {
   close() { this.onclose?.() }
 }
 
-const building = [{ id: 'building-1', name: 'Demo Commercial Building', code: 'DEMO', created_at: '' }]
+const building = [{ id: 'building-1', name: 'Demo Commercial Building', code: 'DEMO-BLDG-01', created_at: '' }]
 const floors = [{ id: 'floor-1', building_id: 'building-1', name: 'Ground Floor', floor_number: 0, created_at: '' }]
 const zones = [
   { id: 'zone-1', floor_id: 'floor-1', name: 'Reception', code: 'RECEPTION', created_at: '' },

@@ -13,7 +13,9 @@ interface DashboardData {
 
 export function useDashboardData(): DashboardData {
   const buildings = useQuery({ queryKey: ['buildings'], queryFn: api.listBuildings })
-  const building = buildings.data?.find((item) => item.name === 'Demo Commercial Building') ?? buildings.data?.[0]
+  // V1 telemetry stays explicitly scoped to the unique seeded demo code.
+  const matches = buildings.data?.filter((item) => item.code === 'DEMO-BLDG-01') ?? []
+  const building = matches.length === 1 ? matches.find((item) => item.code === 'DEMO-BLDG-01') : undefined
   const floors = useQuery({
     queryKey: ['buildings', building?.id, 'floors'],
     queryFn: () => api.listFloors(building!.id),

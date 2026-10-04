@@ -2,10 +2,16 @@ import type { AIChatResponse, Alert, AlertStatus, Building, Device, Floor, Histo
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
+export class ApiError extends Error {
+  constructor(public readonly status: number) {
+    super(`Request failed (${status})`)
+  }
+}
+
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(`${apiBaseUrl}${path}`)
   if (!response.ok) {
-    throw new Error(`Request failed (${response.status})`)
+    throw new ApiError(response.status)
   }
   return (await response.json()) as T
 }
@@ -31,11 +37,14 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 
 export const api = {
   listBuildings: () => get<Building[]>('/buildings'),
+  getBuilding: (buildingId: string) => get<Building>(`/buildings/${encodeURIComponent(buildingId)}`),
   listFloors: (buildingId: string) => get<Floor[]>(`/buildings/${buildingId}/floors`),
   listZones: (buildingId: string) => get<Zone[]>(`/buildings/${buildingId}/zones`),
+  getZone: (zoneId: string) => get<Zone>(`/zones/${encodeURIComponent(zoneId)}`),
   listDevices: (zoneId: string) => get<Device[]>(`/zones/${zoneId}/devices`),
+  getDevice: (deviceId: string) => get<Device>(`/devices/${encodeURIComponent(deviceId)}`),
   latestTelemetry: () => get<Record<string, Telemetry>>('/telemetry/latest'),
-  zoneTelemetry: (zoneId: string) => get<HistoricalTelemetry[]>(`/zones/${zoneId}/telemetry?limit=100`),
+  zoneTelemetry: (zoneId: string, limit = 100) => get<HistoricalTelemetry[]>(`/zones/${zoneId}/telemetry?limit=${limit}`),
   listAlerts: (status?: AlertStatus, limit = 100) => {
     const parameters = new URLSearchParams({ limit: String(limit) })
     if (status) parameters.set('status', status)

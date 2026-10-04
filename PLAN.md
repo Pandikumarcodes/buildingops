@@ -172,4 +172,51 @@ Docker CLI validation and manual browser interaction are verification states, no
 
 ## Recommended execution order
 
-M0 through M13 are the complete MVP sequence. Do not add a later milestone without first changing the product scope and authoritative documents.
+M0 through M13 remain the complete V1 MVP sequence and historical authority. The approved V2 extension below does not rewrite V1 scope or verification evidence.
+
+# BuildingOps V2
+
+## Pre-M14 architecture preparation
+
+This documentation-only preparation resolves three prerequisites: an authoritative M14 plan, unambiguous multi-building telemetry identity, and hierarchy retention/deletion policy. Acceptance is agreement across this plan, PRD.md, ARCHITECTURE.md, and README.md plus passing existing quality checks. No M14 UI, MQTT routing, schema changes, or broad V1 refactoring is authorized by this preparation.
+
+## M14 — Buildings Experience Foundation
+
+- **Status:** Implemented and verified (2026-10-03). See `docs/M14_VERIFICATION.md` for evidence.
+- **Purpose:** Establish the multi-building frontend/navigation foundation needed by later Building Details, floor, zone, device, telemetry, analytics, maintenance, and AI features. Those later capabilities are not M14 scope.
+- **Dependencies:** Completed V1 M0–M13; the pre-M14 decisions in ARCHITECTURE.md; existing hierarchy read APIs. Preserve the recorded environment limitations in V1 verification evidence.
+- **Functionality:** Add `/buildings` with a production-style, responsive Buildings page loaded through existing `GET /buildings`. Show real-looking imagery from frontend/static assets, with a deterministic UUID/code mapping and a generic fallback for unknown buildings. Imagery is illustrative, not evidence of a real monitored site. Backend image persistence is not required. Show names/codes and only summaries supported by trusted existing hierarchy, telemetry, or alert data; missing, stale, or ambiguously attributable data must remain unknown/unavailable, never healthy by default. Do not invent health scores or treat list order as operational status.
+- **Navigation:** Cards link using the building UUID to `/buildings/:buildingId`. Provide a minimal read-only destination that validates the route identity through existing `GET /buildings/{building_id}`, shows the selected building identity, and supports return navigation. Full Building Details is deferred. No arbitrary fallback for malformed or missing IDs or a 404.
+- **Selection:** Remove the demo-name and first-building selection assumptions in `frontend/src/hooks/useDashboardData.ts` wherever shared use affects multi-building navigation. Pages needing a building use route parameter → validated building query → feature/page state. Preserve Dashboard and all V1 pages; retain their demo context explicitly (for example, resolve the unique configured demo building code to its UUID), never by display name or array index. No new global state library; persistent cross-route selection requires a later demonstrated need.
+- **Files/modules expected:** Routes/navigation, Buildings page/cards and query hooks, static imagery, focused tests, and minimal shared-hook changes required by explicit identity. `frontend/src/features/buildings/` may be introduced if useful; retain working V1 locations and create no empty folders or speculative feature trees.
+- **Database changes:** None. No new schema, lifecycle fields, cascade changes, or image storage.
+- **API/events:** Consume existing building list/detail and hierarchy reads; existing telemetry/alert reads only where attribution is safe. Preserve all HTTP, MQTT V1, WebSocket, simulator, analytics, alert, and AI contracts. Centralize WebSocket handling in the existing realtime provider. No V2 MQTT implementation in M14.
+- **States:** Loading, empty list, recoverable query error, invalid identity/not found, missing imagery, and unavailable operational data; responsive cards/navigation at desktop and narrow mobile widths. Preserve simulated-data labeling.
+- **Excluded:** Building create/edit/delete; destructive Building/Floor/Zone/Device actions; floor plans; full Building Details; work orders; predictive maintenance; ML; anomaly detection; user management; multi-agent architecture; new telemetry infrastructure; arbitrary backend schema additions; broad refactors and mass file moves.
+- **Focused tests:** Buildings response rendering and loading/empty/error/retry; UUID card links and validated destination including malformed ID/404; two buildings with reordered responses and duplicate display names; explicit V1 demo context without first-item fallback; image fallback; missing/stale/ambiguous summary data; preservation of existing Dashboard/V1 routes and realtime behavior. Review desktop/mobile layout. Tests use deterministic fixtures, no paid provider or equipment.
+- **Acceptance criteria:** `/buildings` uses real API data and static imagery; each card opens the correct UUID destination regardless of list order/name; no name/index/arbitrary fallback drives active building selection; supported summaries remain attributable and missing data is explicit; all required states and responsive layout are reviewed; no destructive controls, new infrastructure/schema, or MQTT routing changes are introduced; existing V1 flows remain functional; focused tests and backend/frontend/simulator quality checks pass.
+
+Later V2 milestones are deliberately unscheduled. Before implementation, each needs explicit scope, dependencies, acceptance criteria, and tests in this plan. V2 telemetry migration must precede telemetry for additional buildings with repeated zone codes. The first future hierarchy-management milestone must implement archival and history safeguards before exposing lifecycle mutations.
+
+## M15 — Building Details
+
+- **Status:** Implemented and verified (2026-10-04); see `docs/M15_VERIFICATION.md`. M16 is not started.
+- **Dependencies:** Completed and verified M14.
+- **Scope:** UUID-based building details, shared M14 imagery, trusted hierarchy counts, nested Floor → Zone → Device presentation, and minimal safe floor/zone navigation destinations. Read-only existing APIs; no telemetry, AI, transport, schema, CRUD, or floor-plan changes.
+- **Acceptance criteria:** Validated route UUID selects exactly that building; header and imagery match the portfolio; floors, zones, and devices retain validated parent identity; counts use successful API results; floor/zone/back links use canonical IDs; loading, invalid ID, 404, partial failures with retry, and empty hierarchy states are explicit; responsive accessible layout; focused M15 tests and all existing frontend/backend/simulator checks pass.
+- **Canonical routes:** `/buildings/:buildingId`, `/buildings/:buildingId/floors/:floorId`, `/zones/:zoneId`. Floor and zone destinations are context shells only; deeper experiences remain deferred to M16+.
+
+## M16 — Floor & Zone Details
+
+- **Status:** Implemented and verified (2026-10-04); see `docs/M16_VERIFICATION.md`. Depends on verified M15; M17 is not started.
+- **Scope:** Validated floor and zone detail pages, UUID-scoped hierarchy/devices/active alerts, current telemetry through the existing provider, and a UUID device destination shell. Existing APIs only; no backend/schema/transport/AI changes, floor plans, CRUD, or analytics dashboard.
+- **Acceptance criteria:** Validate route and parent identities without fallback; direct zone reload resolves trusted parents; floor zones/device counts and zone devices/alerts cannot leak across scope; REST-initialized provider readings update through the shared WebSocket; simulated labels and explicit source age/freshness/missing values; localized retries and loading/empty/error states; canonical back/zone/device links; responsive/accessibility review at 1440/820/390px; focused tests and all backend/simulator/frontend checks pass.
+- **Telemetry semantics:** Existing live monitor has no freshness threshold. M16 uses a documented 30-second source-timestamp freshness threshold, reevaluated every five seconds. Legacy code-keyed telemetry is displayed only for the uniquely resolved `DEMO-BLDG-01` building and a unique zone code within its returned hierarchy. Additional-building telemetry remains unavailable until V2 transport migration.
+- **Routes:** `/buildings/:buildingId/floors/:floorId`, `/zones/:zoneId`, `/devices/:deviceId` (database UUID; shell only).
+
+## M17 — Device Details
+
+- **Status:** Implemented and verified (2026-10-04); see `docs/M17_VERIFICATION.md`. Depends on verified M16; M18 is not started.
+- **Scope:** UUID Device Details, independently resolved Zone → Floor → Building context, type-aware emphasis of zone conditions, compact latest-10 zone history, scoped zone alerts, and canonical breadcrumbs. Add only the missing read-only device UUID endpoint using the existing DeviceResponse.
+- **Available model fields:** `id`, `zone_id`, `name`, `device_id`, `device_type` (ENVIRONMENT_SENSOR/OCCUPANCY_SENSOR/ENERGY_METER/HVAC_UNIT), `created_at`. No heartbeat/connectivity, manufacturer, firmware, or sensor ownership fields.
+- **Acceptance criteria:** Exact UUID identity/404/invalid/mismatch handling; direct reload resolves trusted parents; current/history/alerts remain zone-scoped with no false device ownership/connectivity; reuse M16 freshness and provider without a second socket; real metadata/type emphasis/breadcrumbs; stable loading/empty/local errors/retries; bounded history; focused frontend/backend tests and all checks pass; responsive/accessibility review at 1440/820/390px. No schema, MQTT, AI, CRUD, or M18 changes.

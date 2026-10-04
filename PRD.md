@@ -125,3 +125,15 @@ Navigation should make the six operational views discoverable without adding sep
 - HVAC and energy views clearly distinguish HVAC kW, zone kW, and derived energy if implemented.
 - The assistant can answer a bounded operational question using application tools and identifies missing/stale facts without unrestricted database access.
 - Key business logic and integration boundaries have automated tests and the README provides a short demo script.
+
+# BuildingOps V2 — approved extension
+
+V1 requirements and its single simulated demo remain historical and authoritative. V2 begins with **M14 — Buildings Experience Foundation**, a read/navigation-oriented Buildings page and explicit UUID navigation. See PLAN.md for implementation scope, tests, and acceptance criteria; M14 is now implemented and verified; later V2 milestones are not started.
+
+M14 adds `/buildings` using existing `GET /buildings`, illustrative static building imagery, attributable operational summaries from trusted existing data, and navigation to a minimal validated `/buildings/:buildingId` destination. Preserve Dashboard and all V1 views, simulated-data labels, loading/empty/error states, and responsive layout. Full Building Details and later floor, zone, device, telemetry, analytics, maintenance, and AI features require separately approved milestones.
+
+UUIDs are canonical database/REST resource IDs; display names, domain codes, and list positions are not active-building identity. Building-dependent pages use an explicit route UUID validated by a building query. M14 removes shared navigation dependence on demo-name/first-building selection without a global state library.
+
+No create/edit/delete workflows, floor plans, work orders, predictive maintenance, ML, anomaly detection, user management, multi-agent architecture, new telemetry infrastructure, or arbitrary schema additions are approved for M14. Multi-building telemetry identity and compatibility are specified in ARCHITECTURE.md; current V1 telemetry remains demo-only until the future telemetry milestone implements migration.
+
+Normal UI management must never remove operational history. Buildings, floors, zones, and devices with telemetry, alerts, or future work orders, maintenance history, or reports should become INACTIVE/ARCHIVED rather than be physically deleted. Hard deletion is limited to verified empty incorrect setup records, development/test fixtures, or explicit administrative cleanup with no operational history anywhere downstream. M14 exposes no Delete actions. A future hierarchy-management milestone must define and migrate lifecycle storage and history protection before exposing these workflows.
